@@ -16,7 +16,11 @@ if response.status_code == 200:
     for link in links:
         href = link.get('href')
         text = link.text.strip()
-        print(f"Link Text: {text}, URL: {href}")
+        #print(f"Link Text: {text}, URL: {href}")
 else:
     print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
-print(soup)
+'''busca: html -> body -> div -> div(id="contentEncontro") -> table (id = tabelaQuadros) 
+-> tbody -> tr (quartos) -> td "justificado" -> segundo div -> span (vao conter os paragrafos) 
+-> <b> -> <a> (vão conter os nomes dos sujeitos)
+'''
+print(soup.find_all('a'))
