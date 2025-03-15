@@ -1,40 +1,21 @@
+import re
+import requests
 from bs4 import BeautifulSoup
+url = 'https://escriba.camara.leg.br/escriba-servicosweb/html/75070'
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+}
 
-# Sample HTML content
-html_content = """
-<html>
-  <head><title>Test Page</title></head>
-  <body>
-    <h1>Welcome to the Test Page</h1>
-    <p>This is a <a href="https://example.com">link</a> to example.com.</p>
-    <ul>
-      <li>Item 1</li>
-      <li>Item 2</li>
-      <li>Item 3</li>
-    </ul>
-  </body>
-</html>
-"""
+response = requests.get(url, headers=headers)
+# Parse the HTML content
+soup = BeautifulSoup(response.content, 'html.parser')
 
-# Parse the HTML content using BeautifulSoup
-soup = BeautifulSoup(html_content, 'html.parser')
+# Extract the debate text (adjust the selector based on the HTML structure)
 
-# Extract and print the title of the page
-title = soup.title.string
-print(f"Title: {title}")
+debate_text = soup.get_text(separator="\n")  # Combine all text with line breaks
+print(soup.find_all(string='name="4037375"'))
+print(soup.find_all(href=re.compile("4037375")))
 
-# Extract and print the text of the first <h1> tag
-h1 = soup.h1.string
-print(f"Header: {h1}")
-
-# Extract and print the href attribute of the first <a> tag
-link = soup.a['href']
-print(f"Link: {link}")
-
-# Extract and print all the list items
-items = soup.find_all('li')
-print("List Items:")
-for item in items:
-    print(f" - {item.string}")
-
-
+soup.find_all(href=re.compile("4037375"))
+#print(nome)
+#print(debate_text)
