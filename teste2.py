@@ -24,6 +24,8 @@ if response.status_code == 200:
         text = link.text.strip()
         if href!= None and sujeito(text):
             print(f"Link Text: {text}, URL: {href}")
+            t = link.find_next_siblings("span")
+            print(t)
 else:
     print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
 '''busca: html -> body -> div -> div(id="contentEncontro") -> table (id = tabelaQuadros) 
@@ -31,6 +33,6 @@ else:
 -> <b> -> <a> (vão conter os nomes dos sujeitos)
 '''
 #print(soup.find_all('a'))
-print(soup.prettify)
+#print(soup.prettify)
 
      
