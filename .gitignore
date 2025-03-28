@@ -1,5 +1,6 @@
 myenv/
 .RData
 .Rhistory
-sessoes
-camara
+sessoes/
+camara/
+codigos/

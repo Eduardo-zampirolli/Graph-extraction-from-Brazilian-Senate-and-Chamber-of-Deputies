@@ -7,20 +7,19 @@ def eh_sujeito(txt):
 
 
 def main():
-    global pasta 
     pasta= 'camara'
     if not os.path.exists(pasta):
         os.makedirs(pasta)
     with open('codigos_camara.txt', 'r', encoding='utf-8') as file:
         lines = file.readlines()
         for line in lines:
-            escrever(int(line))
+            escrever(int(line),pasta)
 
 
 
 
 
-def escrever(codigo):
+def escrever(codigo, pasta):
     url = f'https://escriba.camara.leg.br/escriba-servicosweb/html/{codigo}'
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -39,7 +38,7 @@ def escrever(codigo):
             #print(quarto)
             for quarto in quartos:
                 #Achar todos os politcos que falam
-                sujeitos = quarto.find_all('a')
+                sujeitos = quarto.find_all('b')
                 for sujeito in sujeitos:
                     obj = sujeito.text.strip()
                     if eh_sujeito(obj):
