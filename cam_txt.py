@@ -7,19 +7,24 @@ def eh_sujeito(txt):
 
 
 def main():
-    pasta= 'camara'
+    ano = int(input())
+    pasta= f'camara/{ano}'
     if not os.path.exists(pasta):
         os.makedirs(pasta)
-    with open('codigos_camara.txt', 'r', encoding='utf-8') as file:
+    with open(f'codigos-camara/{ano}.txt', 'r', encoding='utf-8') as file:
         lines = file.readlines()
-        for line in lines:
-            escrever(int(line),pasta)
+        for i in range(int(1+len(lines)/2)):
+            tipo = lines[2*i]
+            cod = int(lines[(2*i)+1])
+            escrever(tipo,cod,pasta)
+        #for line in lines:
+         #   escrever(int(line),pasta)
 
 
 
 
 
-def escrever(codigo, pasta):
+def escrever(tipo, codigo, pasta):
     url = f'https://escriba.camara.leg.br/escriba-servicosweb/html/{codigo}'
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -32,6 +37,7 @@ def escrever(codigo, pasta):
         soup = BeautifulSoup(html_content, 'html.parser')
         arquivo = os.path.join(pasta, f'{codigo}.txt')
         with open(arquivo, 'w', encoding='utf-8') as file: 
+            file.write(f"{tipo}\n")
             # Find all elements that contain the speaker and speech
             elements = soup.find("table") 
             quartos = elements.find_all('div', class_ = 'principalStyle')
@@ -48,9 +54,9 @@ def escrever(codigo, pasta):
                 falas = quarto.find_all('span')
                 for fala in falas:
                     file.write(fala.get_text())
-        
+    
     else:
-        print(f"Failed to retrieve the webpage. Status code: {response.status_code}")
+        print(f"Failed to retrieve the webpage. Status code: {response.status_code}. Code: {tipo} {codigo}")
 
 if __name__ == "__main__":
     main()

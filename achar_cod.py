@@ -36,7 +36,7 @@ def achar(pasta, ano):
 
 def main():
     global pasta
-    pasta = 'codigos'
+    pasta = 'codigos-camara'
     ano = int(input())
     if not os.path.exists(pasta):
         os.makedirs(pasta)

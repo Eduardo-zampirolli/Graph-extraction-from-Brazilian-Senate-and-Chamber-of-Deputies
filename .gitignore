@@ -1,4 +1,6 @@
 myenv/
+textos_camara.zip
+run.sh*
 .RData
 .Rhistory
 sessoes/
