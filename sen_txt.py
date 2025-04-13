@@ -2,30 +2,26 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-def eh_sujeito(txt):
-    return txt[:6] == 'A SRA.' or txt[:5] == 'O SR.'
-
-
 def main():
     ano = int(input())
-    pasta= f'camara/{ano}'
+    pasta= f'senado/{ano}'
     if not os.path.exists(pasta):
         os.makedirs(pasta)
-    with open(f'codigos-camara/{ano}.txt', 'r', encoding='utf-8') as file:
+    with open(f'codigos-senado/{ano}.txt', 'r', encoding='utf-8') as file:
         lines = file.readlines()
-        for i in range(int(1+len(lines)/2)):
-            tipo = lines[2*i]
-            cod = int(lines[(2*i)+1])
-            escrever(tipo,cod,pasta)
+        for i in range(int(len(lines))):
+            cod = int(lines[i])
+            escrever(cod,pasta)
         #for line in lines:
          #   escrever(int(line),pasta)
 
 
+def eh_sujeito(txt):
+    return txt[:6] == 'A SRA.' or txt[:5] == 'O SR.'
 
 
-
-def escrever(tipo, codigo, pasta):
-    url = f'https://escriba.camara.leg.br/escriba-servicosweb/html/{codigo}'
+def escrever(codigo, pasta):
+    url = f'https://www25.senado.leg.br/web/atividade/notas-taquigraficas/-/notas/s/{codigo}'
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -37,9 +33,10 @@ def escrever(tipo, codigo, pasta):
         soup = BeautifulSoup(html_content, 'html.parser')
         arquivo = os.path.join(pasta, f'{codigo}.txt')
         with open(arquivo, 'w', encoding='utf-8') as file: 
-            file.write(f"{tipo}\n")
             # Find all elements that contain the speaker and speech
-            elements = soup.find("table") 
+            #total = soup.find('div', class_="container sf-spacer-xs")
+            #texto = total.find('div', class_="columns-1")
+            elements = soup.find("table", id="tabelaQuartos", class_='principalStyle') 
             quartos = elements.find_all('div', class_ = 'principalStyle')
             #print(quarto)
             for quarto in quartos:
@@ -55,8 +52,12 @@ def escrever(tipo, codigo, pasta):
                 for fala in falas:
                     file.write(fala.get_text())
     
+
+           
+           
+    
     else:
-        print(f"Failed to retrieve the webpage. Status code: {response.status_code}. Code: {tipo} {codigo}")
+        print(f"Failed to retrieve the webpage. Status code: {response.status_code}. Code: {codigo}")
 
 if __name__ == "__main__":
     main()
