@@ -1,5 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
 import os
 
 def eh_sujeito(txt):
@@ -17,11 +16,6 @@ def main():
             tipo = lines[2*i]
             cod = int(lines[(2*i)+1])
             escrever(tipo,ano, cod,pasta)
-        #for line in lines:
-         #   escrever(int(line),pasta)
-
-
-
 
 
 def escrever(tipo, ano, codigo, pasta):
@@ -36,7 +30,6 @@ def escrever(tipo, ano, codigo, pasta):
         arquivo = os.path.join(pasta, f'{ano}.txt')
         with open(arquivo, 'a', encoding='utf-8') as file: 
             file.write(f"{tipo}{codigo}\n")
-            # Find all elements that contain the speaker and speech
 
 if __name__ == "__main__":
     main()

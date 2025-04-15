@@ -1,10 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 import os
+import re
 
+#Funcao que determina se o texto esta se referindo ao falante
 def eh_sujeito(txt):
     return txt[:6] == 'A SRA.' or txt[:5] == 'O SR.'
-
 
 def main():
     ano = int(input())
@@ -17,11 +18,13 @@ def main():
             tipo = lines[2*i]
             cod = int(lines[(2*i)+1])
             escrever(tipo,cod,pasta)
-        #for line in lines:
-         #   escrever(int(line),pasta)
 
-
-
+#Encontrar a data no texto selecionado
+def achar_data(texto):
+    padrao_data = r"Em (\d{1,2}(?:º|ª)? de [a-zA-Zç]+ de \d{4})"
+    match = re.search(padrao_data, texto)
+    data = match.group(1)
+    return data
 
 
 def escrever(tipo, codigo, pasta):
@@ -37,18 +40,20 @@ def escrever(tipo, codigo, pasta):
         soup = BeautifulSoup(html_content, 'html.parser')
         arquivo = os.path.join(pasta, f'{codigo}.txt')
         with open(arquivo, 'w', encoding='utf-8') as file: 
+            #Achar a data contida no titulo
+            titulo = soup.find('div', class_="contentTitle").text
+            data = achar_data(titulo)
+            file.write(f"{data}\n")
             file.write(f"{tipo}\n")
-            # Find all elements that contain the speaker and speech
+            #Achar as 'table' que contem as falas dos sujeitos
             elements = soup.find("table") 
             quartos = elements.find_all('div', class_ = 'principalStyle')
-            #print(quarto)
             for quarto in quartos:
                 #Achar todos os politcos que falam
                 sujeitos = quarto.find_all('b')
                 for sujeito in sujeitos:
                     obj = sujeito.text.strip()
                     if eh_sujeito(obj):
-                        #file.write(f"troca {sujeito.text.strip()}: \n")
                         file.write(f"\n")
                 #Achar todas as falas
                 falas = quarto.find_all('span')

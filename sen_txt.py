@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import os
+import re
 
 def main():
     ano = int(input())
@@ -12,9 +13,13 @@ def main():
         for i in range(int(len(lines))):
             cod = int(lines[i])
             escrever(cod,pasta)
-        #for line in lines:
-         #   escrever(int(line),pasta)
 
+def achar_data(texto):
+    t = texto[20:200]
+    padrao_data = r"Em (\d{1,2}(?:º|ª)? de [a-zA-Zç]+ de \d{4})"
+    match = re.search(padrao_data, t)
+    data = match.group(1)
+    return data
 
 def eh_sujeito(txt):
     return txt[:6] == 'A SRA.' or txt[:5] == 'O SR.'
@@ -29,33 +34,29 @@ def escrever(codigo, pasta):
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
+        #Coletar o texto do site
         html_content = response.text
         soup = BeautifulSoup(html_content, 'html.parser')
         arquivo = os.path.join(pasta, f'{codigo}.txt')
         with open(arquivo, 'w', encoding='utf-8') as file: 
-            # Find all elements that contain the speaker and speech
-            #total = soup.find('div', class_="container sf-spacer-xs")
-            #texto = total.find('div', class_="columns-1")
+            #Achar a data em que a sessao ocorreu
+            texto = soup.find('div', class_="columns-1").text
+            data = achar_data(texto)
+            file.write(f"{data}\n\n")
+            #Achar as 'table' que possuem as falas dos sujeitos
             elements = soup.find("table", id="tabelaQuartos", class_='principalStyle') 
             quartos = elements.find_all('div', class_ = 'principalStyle')
-            #print(quarto)
             for quarto in quartos:
                 #Achar todos os politcos que falam
                 sujeitos = quarto.find_all('b')
                 for sujeito in sujeitos:
                     obj = sujeito.text.strip()
                     if eh_sujeito(obj):
-                        #file.write(f"troca {sujeito.text.strip()}: \n")
                         file.write(f"\n")
                 #Achar todas as falas
                 falas = quarto.find_all('span')
                 for fala in falas:
                     file.write(fala.get_text())
-    
-
-           
-           
-    
     else:
         print(f"Failed to retrieve the webpage. Status code: {response.status_code}. Code: {codigo}")
 
