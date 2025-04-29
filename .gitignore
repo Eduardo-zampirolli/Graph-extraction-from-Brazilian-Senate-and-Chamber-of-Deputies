@@ -15,3 +15,5 @@ Camara/
 Senado/
 parliamentary_ner_model/
 ner_results/
+ner_results2/
+people_list.csv

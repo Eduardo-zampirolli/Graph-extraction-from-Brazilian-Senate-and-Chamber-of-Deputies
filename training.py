@@ -1,4 +1,5 @@
 import spacy
+import pandas as pd
 
 # Load text file
 with open("senado/2024/26007.txt", "r", encoding="utf-8") as file:
@@ -17,7 +18,7 @@ for ent in doc.ents:
 # Extract ONLY people (PERSON entities)
 people = []
 for ent in doc.ents:
-    if ent.label_ == "PERSON" and len(ent.text.strip()) > 1:
+    if ent.label_ == "PER" and len(ent.text.strip()) > 1:
         people.append({"name": ent.text.strip()})
 
 # Remove duplicates
