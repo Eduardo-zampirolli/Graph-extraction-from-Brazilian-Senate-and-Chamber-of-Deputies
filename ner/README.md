@@ -18,6 +18,8 @@ import os
 import glob
 import time
 import re
+from fuzzywuzzy import fuzz
+from unicodedata import normalize
 ```
 
 - **`transformers`**: This is the core library from Hugging Face used for accessing pre-trained models and pipelines. 
@@ -32,14 +34,15 @@ import re
 - **`os`**: Provides a way of using operating system dependent functionality, used for path manipulation (`os.path.join`, `os.path.dirname`, `os.path.basename`, `os.path.splitext`, `os.path.abspath`, `os.path.relpath`), checking file/directory existence (`os.path.isdir`, `os.path.isfile`), and creating directories (`os.makedirs`).
 - **`glob`**: Used for finding files matching a specific pattern (e.g., finding all `.txt` files in a directory recursively).
 - **`time`**: Used for timing the execution of different parts of the script (model loading, file processing).
-- **`re`**: The regular expression library, used for rule-based entity extraction (`_extract_persons_rule_based`) and name normalization (`_normalize_for_comparison`).
+- **`re`**: The regular expression library, used for rule-based entity extraction (`_rule_based_ner`) and name normalization (`_normalize_for_comparison`).
+- **`fuzzywuzzy`**: Used to compare the similarity between strings, useful to group entities with different, but similar, names in the text
 
-## 2. The `NERPersonExtractorWithMerging` Class
+## 2. The `IntegratedNERProcessor` Class
 
 This class encapsulates all the logic related to extracting, merging, and grouping person entities.
 
 ```python
-class NERPersonExtractorWithMerging:
+class IntegratedNERProcessor:
     # ... (class content)
 ```
 
@@ -72,14 +75,14 @@ This is the constructor method, executed when an object of the class is created.
     9.  Calculates and prints the time taken to load the model.
     10. Compiles a regular expression (`self.title_regex`) to find names following Portuguese titles like "O SR." (Mr.) or "A SRA." (Mrs.). It looks for the title followed by a sequence of capitalized words, potentially including common connectors like "de", "da", "do". The `re.IGNORECASE` flag makes the title matching case-insensitive.
 
-## 2.2. `_extract_persons_rule_based(self, text)`
-
+## 2.2. `_rule_based_ner(self, text)`
+- **This function was not used in this version, but it is useful if, for some reason, any speaker was not found by the model or if we want to collect some information in the name description, like political party or state**
 ```python
-    def _extract_persons_rule_based(self, text):
+    def _rule_based_ner(self, text):
         # ... (rule-based extraction logic)
 ```
 
-- **Purpose**: Extracts person names based solely on the pre-compiled regular expression (`self.title_regex`) that looks for names following "O SR." or "A SRA.".
+- **Purpose**: Extracts person names based solely on the pre-compiled regular expression (`self.title_regex`) that looks for names following "O SR." or "A SRA.". Also add party and state from the entity
 - **Parameters**:
     - `text` (str): The input text to search within.
 - **Returns**: 
@@ -90,6 +93,10 @@ This is the constructor method, executed when an object of the class is created.
         - `start`: The starting character index of the name in the original text.
         - `end`: The ending character index (exclusive) of the name in the original text.
         - `source`: Always "rule".
+        - `matadata`:
+            - `party`
+            - `state`
+            - `title`: None or PRESIDENTE
 - **Logic**:
     1. Initializes an empty list `rule_entities`.
     2. Iterates through all matches found by `self.title_regex.finditer(text)`.
@@ -97,7 +104,7 @@ This is the constructor method, executed when an object of the class is created.
         - Extracts the captured name part (group 1 of the regex) and removes leading/trailing whitespace (`match.group(1).strip()`).
         - Performs some basic cleanup on the extracted name:
             - If a period (`.`) exists within the name, it tries to find if the period is followed by whitespace and another capital letter, parenthesis, newline, or end-of-string. If so, it assumes the period marks the end of the name and truncates the name before the period.
-            - Removes any trailing parenthesized text (like `(Bloco/PARTIDO)` often found after names in transcripts) using `re.sub()`.
+            - From the parenthesized we colect the name (if president), party and state.
         - Checks if the cleaned name is valid (not empty and longer than 1 character).
         - If valid, creates a dictionary with the entity details (group, score, word, start/end indices, source) and appends it to `rule_entities`.
     4. Returns the `rule_entities` list.
@@ -118,7 +125,7 @@ This is the constructor method, executed when an object of the class is created.
         2. `grouped_persons_dict` (dict): A dictionary where keys are the canonical person names and values are lists of `(start, end)` tuples representing all mentions of that person. This dictionary is saved to the `.entities.json` file.
 - **Logic**:
     1.  **Error Handling**: Wraps the entire process in a `try...except` block to catch and report any errors during processing, returning empty results (`[], {}`) if an error occurs.
-    2.  **Rule-Based Extraction**: Calls `self._extract_persons_rule_based(text)` to get entities found by the title rule.
+    2.  **Rule-Based Extraction**: Calls `self._rule_based_ner(text)` to get entities found by the title rule.
     3.  **Model-Based Extraction (Chunking)**:
         - Initializes an empty list `model_entities`.
         - Defines a `chunk_char_size` (e.g., 400 characters) and an `overlap_size` (e.g., 100 characters). The overlap ensures that entities spanning chunk boundaries are likely captured completely in at least one chunk.
@@ -376,9 +383,9 @@ def process_file(extractor, input_file_path, base_input_dir, base_output_dir):
     # ... (file processing logic)
 ```
 
-- **Purpose**: Processes a single input text file: reads the content, uses the `NERPersonExtractorWithMerging` instance to extract and group entities, and writes the results to the corresponding `.entities.json` and `.annotated.txt` files in the specified output directory, preserving the relative path structure.
+- **Purpose**: Processes a single input text file: reads the content, uses the `IntegratedNERProcessor` instance to extract and group entities, and writes the results to the corresponding `.entities.json` and `.annotated.txt` files in the specified output directory, preserving the relative path structure.
 - **Parameters**:
-    - `extractor`: An instance of the `NERPersonExtractorWithMerging` class.
+    - `extractor`: An instance of the `IntegratedNERProcessor` class.
     - `input_file_path` (str): The absolute path to the input `.txt` file.
     - `base_input_dir` (str): The base directory from which input files are being read (used to determine relative paths).
     - `base_output_dir` (str): The base directory where output files should be written.
@@ -422,7 +429,7 @@ if __name__ == "__main__":
         - If the input path is neither a directory nor a `.txt` file, prints an error and exits.
     3. **File Check**: Exits if no `.txt` files were found.
     4. **Dependency Check**: Includes a `try...except ImportError` block to check if `transformers` and `torch` are installed. Prints an error and exits if they are not found (though installation is handled externally in the current workflow).
-    5. **Initialization**: Creates an instance of the `NERPersonExtractorWithMerging` class.
+    5. **Initialization**: Creates an instance of the `IntegratedNERProcessor` class.
     6. **Processing Loop**: 
         - Records the total start time.
         - Iterates through the `file_paths` list.
