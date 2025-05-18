@@ -13,9 +13,8 @@ from unicodedata import normalize
 class IntegratedNERProcessor:
     """
     Performs Named Entity Recognition (NER) using a transformer model, 
-    merges adjacent entities, removes duplicates, groups similar Person names, 
-    and generates annotated text output.
-    Combines extraction logic from teste_spacy.py with grouping from simple_ner_grouper.py.
+    merges adjacent entities, removes duplicates, groups similar Person names,
+    and generates JSON output only.
     """
     def __init__(self, model_name="pierreguillou/ner-bert-base-cased-pt-lenerbr"):
         self.model_name = model_name
@@ -342,187 +341,132 @@ class IntegratedNERProcessor:
                  final_grouped[canonical] = unique_positions
         
         return final_grouped
+    
     def _clean_text(self,text):
         """Normalize text and remove existing annotations"""
         text = normalize('NFC', text)
         return re.sub(r'<\/?[A-Z]+>', '', text)
+    
     def process_text(self, text):
         """Public method: Extracts, merges, deduplicates, filters, and groups Person entities.
-           Returns the grouped dictionary AND the list of unique PESSOA entities for annotation.
+           Returns the grouped dictionary.
         """
         if not isinstance(text, str) or not text.strip():
             print("Warning: Input text is empty or not a string. Returning empty results.")
-            return {}, []
+            return {}
             
         # 1. Extract raw entities using sliding window
-        # Note: teste_spacy.py had a clean_text step, omitting here for simplicity unless needed
         clean_text_content = self._clean_text(text)
-        raw_entities = self._extract_entities_with_overlap(clean_text_content, text) # Use text as original_text for now
+        raw_entities = self._extract_entities_with_overlap(clean_text_content, text)
         if not raw_entities:
             print("No entities found by the model.")
-            return {}, []
+            return {}
             
-        # 2. Merge adjacent entities of the same type
-        merged_entities = self._merge_adjacent_entities(raw_entities)
+        # 2. Add rule-based entities
+        rule_entities = self._rule_based_ner(clean_text_content, text)
+        all_entities = raw_entities + rule_entities
         
-        # 3. Remove duplicate spans (keeping highest score)
-        unique_span_entities = self._remove_duplicate_spans(merged_entities)
-        
-        # 4. Filter for PESSOA entities
-        pessoa_entities = [ent for ent in unique_span_entities if ent.get("entity_group") == "PESSOA"]
+        # 3. Filter to keep only PESSOA entities
+        pessoa_entities = [e for e in all_entities if e["entity_group"] == "PESSOA"]
         if not pessoa_entities:
-            print("No PESSOA entities found after merging and deduplication.")
-            return {}, []
+            print("No PESSOA entities found.")
+            return {}
             
-        # 5. Group similar PESSOA entities
-        grouped_results = self._group_similar_persons(pessoa_entities)
-        name_mapping = {}
-        for canonical, positions in grouped_results.items():
-            for start, end, score in positions:
-                original_text = text[start:end]
-                name_mapping[(start, end)] = canonical
-        # Return grouped results and the unique PESSOA entities for annotation
-        return grouped_results, pessoa_entities,name_mapping
-
-# --- Standalone Functions --- 
-
-def create_annotated_text(original_text, entities, name_mapping=None):
-    """Create final annotated text using canonical names from grouping when available."""
-    if not entities:
-        return original_text
+        # 4. Merge adjacent entities
+        merged_entities = self._merge_adjacent_entities(pessoa_entities)
         
-    pessoa_entities = [e for e in entities if e.get("entity_group") == "PESSOA" \
-                      and isinstance(e.get("start"), int) and isinstance(e.get("end"), int)]
-    if not pessoa_entities:
-        return original_text
+        # 5. Remove duplicates
+        unique_entities = self._remove_duplicate_spans(merged_entities)
         
-    sorted_entities = sorted(pessoa_entities, key=lambda x: -x["start"])
-    
-    annotated = original_text
-    last_start = len(original_text)
-    
-    for ent in sorted_entities:
-        start, end = ent["start"], ent["end"]
-        if start >= end or end > last_start:
-            continue
-            
-        # Use canonical name if available in name_mapping, otherwise use original text
-        if name_mapping and (start, end) in name_mapping:
-            entity_word = name_mapping[(start, end)]
-        else:
-            entity_word = annotated[start:end]
-            
-        annotated = (
-            annotated[:start] 
-            + f"<PESSOA:{entity_word}>" 
-            + annotated[end:]
-        )
-        last_start = start
+        # 6. Group similar entities
+        grouped_results = self._group_similar_persons(unique_entities)
+        
+        return grouped_results
 
-    return annotated
-
-def save_grouped_entities(grouped_data, output_path):
-    """Saves the grouped entity dictionary to a JSON file."""
+def save_grouped_entities(grouped_entities, output_path):
+    """Save grouped entities to JSON file."""
     try:
+        # Ensure the directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f: 
-            serializable_data = json.loads(json.dumps(grouped_data, default=str)) 
-            json.dump(serializable_data, f, ensure_ascii=False, indent=4)
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(grouped_entities, f, ensure_ascii=False, indent=4)
+        return True
     except Exception as e:
-        print(f"Error writing JSON file {output_path}: {e}")
+        print(f"Error saving grouped entities to {output_path}: {e}")
+        return False
 
-def save_annotated_text(annotated_text, output_path):
-    """Saves the annotated text to a file."""
+def process_file(processor, file_path, base_input_dir, base_output_dir):
+    """Process a single file."""
+    file_start_time = time.time()
+    print(f"Processing file: {file_path}")
+    
     try:
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(annotated_text)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            original_text = f.read()
     except Exception as e:
-        print(f"Error writing annotated text file {output_path}: {e}")
+        print(f"Error reading file {file_path}: {e}")
+        return False
+    
+    # Process the text
+    grouped_results = processor.process_text(original_text)
+    
+    # Determine output paths
+    relative_path = os.path.relpath(file_path, start=base_input_dir)
+    name_root = os.path.splitext(relative_path)[0]
+    output_json_path = os.path.join(base_output_dir, name_root + ".grouped_entities.json")
+    
+    # Save JSON results only
+    if grouped_results:
+        save_grouped_entities(grouped_results, output_json_path)
+        print(f"Found {len(grouped_results)} unique person groups. Saved JSON to: {output_json_path}")
+    else:
+        print("No person groups found or an error occurred during grouping.")
+    
+    file_time = time.time() - file_start_time
+    print(f"Finished processing in {file_time:.2f} seconds.")
+    return True
 
 def main():
-    """Main function to handle command-line arguments and process files."""
-    if len(sys.argv) != 2:
-        print(f"Usage: python {os.path.basename(__file__)} <input_directory_or_file_path>")
+    """Main function to run the script."""
+    if len(sys.argv) < 3:
+        print("Usage: python ner.py <input_dir> <output_dir>")
         sys.exit(1)
-        
-    input_path = sys.argv[1]
-    file_paths = []
-    base_input_dir = ""
-    base_output_dir = ""
-
-    if os.path.isdir(input_path):
-        base_input_dir = os.path.abspath(input_path)
-        base_output_dir = os.path.join(os.path.dirname(base_input_dir), os.path.basename(base_input_dir) + "_out")
-        print(f"Input is a directory: {base_input_dir}")
-        print(f"Output directory set to: {base_output_dir}")
-        glob_pattern = os.path.join(base_input_dir, "**", "*.txt")
-        all_files = glob.glob(glob_pattern, recursive=True)
-        file_paths = [fp for fp in all_files if not (fp.endswith(".grouped_entities.json") or fp.endswith(".annotated.txt"))]
-        print(f"Found {len(file_paths)} .txt files to process.")
-    elif os.path.isfile(input_path) and input_path.endswith(".txt"):
-        file_paths = [os.path.abspath(input_path)]
-        base_input_dir = os.path.dirname(file_paths[0])
-        base_output_dir = base_input_dir 
-        print(f"Input is a single file: {file_paths[0]}")
-        print(f"Output directory set to: {base_output_dir}")
-    else:
-        print(f"Error: Input path \'{input_path}\' is not a valid directory or .txt file.")
-        sys.exit(1)
-        
-    if not file_paths:
-        print("No .txt files found to process.")
-        sys.exit(0)
     
-    try:
-        processor = IntegratedNERProcessor()
-    except Exception as e:
-        print(f"Failed to initialize IntegratedNERProcessor: {e}")
+    base_input_dir = sys.argv[1]
+    base_output_dir = sys.argv[2]
+    
+    if not os.path.isdir(base_input_dir):
+        print(f"Error: Input directory {base_input_dir} does not exist.")
         sys.exit(1)
-        
+    
+    # Create output directory if it doesn't exist
+    os.makedirs(base_output_dir, exist_ok=True)
+    
+    # Initialize the processor
+    processor = IntegratedNERProcessor()
+    
+    # Find all text files in the input directory
+    txt_files = []
+    for file in glob.glob(os.path.join(base_input_dir, "**", "*.txt"), recursive=True):
+        # Skip files that are already annotated
+        if not file.endswith(".annotated.txt"):
+            txt_files.append(file)
+    
+    if not txt_files:
+        print(f"No text files found in {base_input_dir}")
+        sys.exit(1)
+    
+    print(f"Found {len(txt_files)} text files to process.")
+    
+    # Process each file
     total_start_time = time.time()
     processed_count = 0
-
-    for i, file_path in enumerate(file_paths):
-        print(f"\n--- Processing file {i+1}/{len(file_paths)}: {file_path} ---")
-        file_start_time = time.time()
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                original_text = f.read()
-        except Exception as e:
-            print(f"Error reading input file: {e}")
-            continue 
-        grouped_results = {}
-        pessoa_entities_for_annotation = []
-        try: 
-            grouped_results, pessoa_entities_for_annotation,name_mapping = processor.process_text(original_text)
-        except Exception as e:
-            print(f"error {e}")
-            grouped_results = {}
-            pessoa_entities_for_annotation = []
-        relative_path = os.path.relpath(file_path, start=base_input_dir)
-        name_root = os.path.splitext(relative_path)[0]
-        output_json_path = os.path.join(base_output_dir, name_root + ".grouped_entities.json")
-        output_annotated_path = os.path.join(base_output_dir, name_root + ".annotated.txt")
-
-        if grouped_results:
-            save_grouped_entities(grouped_results, output_json_path)
-            print(f"Found {len(grouped_results)} unique person groups. Saved JSON to: {output_json_path}")
-        else:
-            print("No person groups found or an error occurred during grouping.")
-
-        if pessoa_entities_for_annotation:
-            annotated_text = create_annotated_text(original_text, pessoa_entities_for_annotation,name_mapping)
-            save_annotated_text(annotated_text, output_annotated_path)
-            print(f"Saved annotated text to: {output_annotated_path}")
-        else:
-            print("No PESSOA entities found for annotation. Saving original text.")
-            save_annotated_text(original_text, output_annotated_path)
-
-        file_time = time.time() - file_start_time
-        print(f"Finished processing in {file_time:.2f} seconds.")
-        processed_count += 1
-
+    
+    for file_path in txt_files:
+        if process_file(processor, file_path, base_input_dir, base_output_dir):
+            processed_count += 1
+    
     total_time = time.time() - total_start_time
     print(f"\n\nFinished processing {processed_count} files in {total_time:.2f} seconds.")
     if processed_count > 0:
