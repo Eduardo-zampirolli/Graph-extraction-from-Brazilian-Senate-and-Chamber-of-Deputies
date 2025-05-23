@@ -4,9 +4,6 @@ authors:
 - family-names: "Moura Zampirolli"
   given-names: "Eduardo"
   orcid: "https://orcid.org/0000-0000-0000-0000"
-- family-names: "Lisa"
-  given-names: "Mona"
-  orcid: "https://orcid.org/0000-0000-0000-0000"
 title: "Graph-extraction-from-Brazilian-Senate-and-Chamber-of-Deputies"
 version: 1.0.0
 doi: 10.5281/zenodo.1234
