@@ -5,42 +5,20 @@ import csv
 from datetime import datetime
 
 def calculate_graph_metrics(nwx_graph, ig_graph):
-    """Calculate all required metrics for a graph, considering directionality and weights"""
+    """Calculate all required metrics for a graph, considering weights for relevant metrics"""
+    # Ensure the graph is directed for networkx clustering coefficient
+    if not nwx_graph.is_directed():
+        nwx_graph = nwx_graph.to_directed()
+
     metrics = {
         'vertices': ig_graph.vcount(),
         'edges': ig_graph.ecount(),
-        'average_degree': sum(ig_graph.degree(mode="all")) / ig_graph.vcount(),
-        'density': ig_graph.density(),
+        'average_degree': sum(ig_graph.degree()) / ig_graph.vcount(), # Unweighted degree
+        'clustering_coef': nx.average_clustering(nwx_graph, weight='weight'), # Removed mode="directed"
+        'avg_distance': ig_graph.average_path_length(directed=True, weights='weight'), # Use weights for average path length
+        'density': ig_graph.density(), # Unweighted density
+        'diameter': ig_graph.diameter(directed=True, weights='weight') # Use weights for diameter
     }
-    
-    # Handle directed/undirected cases appropriately
-    is_directed = ig_graph.is_directed()
-    
-    # Clustering coefficient - use appropriate method based on graph type
-    if is_directed:
-        # For directed graphs, we'll use igraph's implementation
-        try:
-            metrics['clustering_coef'] = ig_graph.transitivity_avglocal()
-        except AttributeError:
-            # Fallback if transitivity_avglocal not available
-            clustering_local = ig_graph.transitivity_local_undirected()
-            metrics['clustering_coef'] = sum(clustering_local) / len(clustering_local)
-    else:
-        metrics['clustering_coef'] = ig_graph.transitivity_undirected()
-    
-    # Path-based metrics (handle weights appropriately)
-    weights = "weight" if "weight" in ig_graph.edge_attributes() else None
-    
-    try:
-        metrics['avg_distance'] = ig_graph.average_path_length(directed=is_directed, 
-                                                             weights=weights)
-        metrics['diameter'] = ig_graph.diameter(directed=is_directed, 
-                                               weights=weights)
-    except (ig.InternalError, TypeError):
-        # Fallback for disconnected graphs or other issues
-        metrics['avg_distance'] = float('nan')
-        metrics['diameter'] = float('nan')
-    
     return metrics
 
 def process_graph_files(file_list, output_csv):
@@ -53,19 +31,15 @@ def process_graph_files(file_list, output_csv):
         
         for filename in file_list:
             try:
+                # Extract year from filename (assuming format like grafo_YYYY.gexf)
                 year = os.path.basename(filename).split('_')[1].split('.')[0]
                 
-                # Read with networkx first to preserve all attributes
-                nwx = nx.read_gexf(filename)
+                # Read and convert graph
+                nwx = nx.read_gexf(filename) # networkx graph
+                graph = ig.Graph.from_networkx(nwx) # igraph graph, should preserve weights
                 
-                # Convert to igraph, preserving directionality and weights
-                graph = ig.Graph.from_networkx(nwx)
-                
-                # Transfer weights if they exist
-                if 'weight' in nwx.edges[list(nwx.edges)[0]]:
-                    graph.es['weight'] = [e[2]['weight'] for e in nwx.edges(data=True)]
-                
-                metrics = calculate_graph_metrics(nwx, graph)
+                # Calculate metrics
+                metrics = calculate_graph_metrics(nwx, graph) # Pass both networkx and igraph objects
                 metrics['year'] = year
                 
                 writer.writerow(metrics)
@@ -74,7 +48,6 @@ def process_graph_files(file_list, output_csv):
             except Exception as e:
                 print(f"Error processing {filename}: {str(e)}")
 
-# ... rest of your main() function remains the same ...
 def main():
     if len(sys.argv) != 2:
         print("Usage: python graph_metrics.py path/to/graphs")
