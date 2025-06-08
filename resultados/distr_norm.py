@@ -33,7 +33,8 @@ def add_power_law_fit(degrees, probs, color='r', label_prefix=""):
         x_fit = np.logspace(np.log10(min(x_data)), np.log10(max(x_data)), 100)
         y_fit = power_law(x_fit, *params)
         plt.plot(x_fit, y_fit, color=color, linestyle='--',
-                label=f'{label_prefix}Fit: y={params[0]:.2f}x^{params[1]:.2f}\nR²={r_squared:.2f}')
+                label=f'{label_prefix}Fit: y={params[0]:.2f}x^{params[1]:.2f}\nR²={r_squared:.2f}'
+        )
         
         return params[1], params[0], r_squared  # slope, intercept, r_squared
     
@@ -48,51 +49,51 @@ def plot_distribution(file_list, out_dir):
         try:
             year = os.path.basename(filename).split('_')[1].split('.')[0]
             nwx = nx.read_gexf(filename)
-            graph = ig.Graph.from_networkx(nwx)
+            graph = ig.Graph.from_networkx(nwx) # igraph graph, should preserve weights
             N = graph.vcount()  # Total number of nodes
             
-            # Total degrees distribution
-            degrees = graph.degree()
-            unique_degrees, counts = np.unique(degrees, return_counts=True)
+            # Total strength distribution
+            strengths = graph.strength(weights='weight')
+            unique_strengths, counts = np.unique(strengths, return_counts=True)
             probs = counts / N  # Normalized probability
             
             plt.figure(figsize=(10, 6))
-            plt.loglog(unique_degrees, probs, 'bo', markersize=5, label='Data')
-            add_power_law_fit(unique_degrees, probs, 'r', "Total ")
-            plt.title(f"Distribuição normalizada de graus em {year} (Log-Log)")
-            plt.xlabel("Grau (log)")
+            plt.loglog(unique_strengths, probs, 'bo', markersize=5, label='Data')
+            add_power_law_fit(unique_strengths, probs, 'r', "Total")
+            plt.title(f"Distribuição normalizada de força total em {year} (Log-Log)")
+            plt.xlabel("Força (log)")
             plt.ylabel("Probabilidade (log)")
             plt.grid(True, which="both", linestyle='--')
             plt.legend()
             plt.savefig(os.path.join(out_dir, f"total_{year}.png"))
             plt.close()
             
-            # In-degrees distribution
-            indegrees = graph.indegree()
-            inunique_degrees, incounts = np.unique(indegrees, return_counts=True)
+            # In-strength distribution
+            instrengths = graph.strength(mode='in', weights='weight')
+            inunique_strengths, incounts = np.unique(instrengths, return_counts=True)
             inprobs = incounts / N
             
             plt.figure(figsize=(10, 6))
-            plt.loglog(inunique_degrees, inprobs, 'go', markersize=5, label='In-degree Data')
-            add_power_law_fit(inunique_degrees, inprobs, 'm', "In-degree ")
-            plt.title(f"Distribuição normalizada de graus entrada em {year} (Log-Log)")
-            plt.xlabel("Grau entrada (log)")
+            plt.loglog(inunique_strengths, inprobs, 'go', markersize=5, label='In-strength Data')
+            add_power_law_fit(inunique_strengths, inprobs, 'm', "Entrada")
+            plt.title(f"Distribuição normalizada de força de entrada em {year} (Log-Log)")
+            plt.xlabel("Força entrada (log)")
             plt.ylabel("Probabilidade (log)")
             plt.grid(True, which="both", linestyle='--')
             plt.legend()
             plt.savefig(os.path.join(out_dir, f"in_{year}.png"))
             plt.close()
             
-            # Out-degrees distribution
-            outdegrees = graph.outdegree()
-            outunique_degrees, outcounts = np.unique(outdegrees, return_counts=True)
+            # Out-strength distribution
+            outstrengths = graph.strength(mode='out', weights='weight')
+            outunique_strengths, outcounts = np.unique(outstrengths, return_counts=True)
             outprobs = outcounts / N
             
             plt.figure(figsize=(10, 6))
-            plt.loglog(outunique_degrees, outprobs, 'ro', markersize=5, label='Out-degree Data')
-            add_power_law_fit(outunique_degrees, outprobs, 'c', "Out-degree ")
-            plt.title(f"Distribuição normalizada de graus saída em {year} (Log-Log)")
-            plt.xlabel("Grau saída (log)")
+            plt.loglog(outunique_strengths, outprobs, 'ro', markersize=5, label='Out-strength Data')
+            add_power_law_fit(outunique_strengths, outprobs, 'c', "Saida ")
+            plt.title(f"Distribuição normalizada de força de saída em {year} (Log-Log)")
+            plt.xlabel("Força saída (log)")
             plt.ylabel("Probabilidade (log)")
             plt.grid(True, which="both", linestyle='--')
             plt.legend()
@@ -130,3 +131,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

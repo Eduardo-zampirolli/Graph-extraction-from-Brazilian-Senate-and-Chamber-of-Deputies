@@ -4,17 +4,43 @@ import sys, os, glob
 import csv
 from datetime import datetime
 
-def calculate_graph_metrics(graph):
-    """Calculate all required metrics for a graph"""
+def calculate_graph_metrics(nwx_graph, ig_graph):
+    """Calculate all required metrics for a graph, considering directionality and weights"""
     metrics = {
-        'vertices': graph.vcount(),
-        'edges': graph.ecount(),
-        'average_degree': sum(graph.degree()) / graph.vcount(),
-        'clustering_coef': graph.transitivity_undirected(),
-        'avg_distance': graph.average_path_length(directed=False),
-        'density': graph.density(),
-        'diameter': graph.diameter(directed=False)
+        'vertices': ig_graph.vcount(),
+        'edges': ig_graph.ecount(),
+        'average_degree': sum(ig_graph.degree(mode="all")) / ig_graph.vcount(),
+        'density': ig_graph.density(),
     }
+    
+    # Handle directed/undirected cases appropriately
+    is_directed = ig_graph.is_directed()
+    
+    # Clustering coefficient - use appropriate method based on graph type
+    if is_directed:
+        # For directed graphs, we'll use igraph's implementation
+        try:
+            metrics['clustering_coef'] = ig_graph.transitivity_avglocal()
+        except AttributeError:
+            # Fallback if transitivity_avglocal not available
+            clustering_local = ig_graph.transitivity_local_undirected()
+            metrics['clustering_coef'] = sum(clustering_local) / len(clustering_local)
+    else:
+        metrics['clustering_coef'] = ig_graph.transitivity_undirected()
+    
+    # Path-based metrics (handle weights appropriately)
+    weights = "weight" if "weight" in ig_graph.edge_attributes() else None
+    
+    try:
+        metrics['avg_distance'] = ig_graph.average_path_length(directed=is_directed, 
+                                                             weights=weights)
+        metrics['diameter'] = ig_graph.diameter(directed=is_directed, 
+                                               weights=weights)
+    except (ig.InternalError, TypeError):
+        # Fallback for disconnected graphs or other issues
+        metrics['avg_distance'] = float('nan')
+        metrics['diameter'] = float('nan')
+    
     return metrics
 
 def process_graph_files(file_list, output_csv):
@@ -27,15 +53,19 @@ def process_graph_files(file_list, output_csv):
         
         for filename in file_list:
             try:
-                # Extract year from filename (assuming format like grafo_YYYY.gexf)
                 year = os.path.basename(filename).split('_')[1].split('.')[0]
                 
-                # Read and convert graph
+                # Read with networkx first to preserve all attributes
                 nwx = nx.read_gexf(filename)
+                
+                # Convert to igraph, preserving directionality and weights
                 graph = ig.Graph.from_networkx(nwx)
                 
-                # Calculate metrics
-                metrics = calculate_graph_metrics(graph)
+                # Transfer weights if they exist
+                if 'weight' in nwx.edges[list(nwx.edges)[0]]:
+                    graph.es['weight'] = [e[2]['weight'] for e in nwx.edges(data=True)]
+                
+                metrics = calculate_graph_metrics(nwx, graph)
                 metrics['year'] = year
                 
                 writer.writerow(metrics)
@@ -44,6 +74,7 @@ def process_graph_files(file_list, output_csv):
             except Exception as e:
                 print(f"Error processing {filename}: {str(e)}")
 
+# ... rest of your main() function remains the same ...
 def main():
     if len(sys.argv) != 2:
         print("Usage: python graph_metrics.py path/to/graphs")
@@ -75,3 +106,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
