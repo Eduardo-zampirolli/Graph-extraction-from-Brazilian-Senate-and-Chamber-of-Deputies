@@ -8,40 +8,6 @@ from scipy import optimize
 def power_law(x, a, b):
     return a * np.power(x, b)
 
-def add_power_law_fit(degrees, probs, color='r', label_prefix=""):
-    """Improved power law fit using nonlinear least squares"""
-    # Filter zeros and get log values
-    mask = (probs > 0) & (degrees > 0)
-    x_data = degrees[mask]
-    y_data = probs[mask]
-    
-    if len(x_data) < 3:  # Need at least 3 points for fit
-        return None, None, None
-    
-    try:
-        # Initial guess for parameters
-        params, _ = optimize.curve_fit(power_law, x_data, y_data, 
-                                      p0=[1, -2], maxfev=5000)
-        
-        # Calculate R-squared
-        residuals = y_data - power_law(x_data, *params)
-        ss_res = np.sum(residuals**2)
-        ss_tot = np.sum((y_data - np.mean(y_data))**2)
-        r_squared = 1 - (ss_res / ss_tot)
-        
-        # Plot fitted line
-        x_fit = np.logspace(np.log10(min(x_data)), np.log10(max(x_data)), 100)
-        y_fit = power_law(x_fit, *params)
-        plt.plot(x_fit, y_fit, color=color, linestyle='--',
-                label=f'{label_prefix}Fit: y={params[0]:.2f}x^{params[1]:.2f}\nR²={r_squared:.2f}'
-        )
-        
-        return params[1], params[0], r_squared  # slope, intercept, r_squared
-    
-    except Exception as e:
-        print(f"Fit failed: {str(e)}")
-        return None, None, None
-
 def calculate_cumulative_distribution(values):
     """Calculate the complementary cumulative distribution function (CCDF)"""
     unique_values, counts = np.unique(values, return_counts=True)
@@ -66,13 +32,11 @@ def plot_distribution(file_list, out_dir):
             unique_strengths, cum_probs = calculate_cumulative_distribution(strengths)
             
             plt.figure(figsize=(10, 6))
-            plt.loglog(unique_strengths, cum_probs, 'bo', markersize=5, label='Data')
-            add_power_law_fit(unique_strengths, cum_probs, 'r', "Total")
+            plt.loglog(unique_strengths, cum_probs, 'bo', markersize=5)
             plt.title(f"Distribuição acumulativa de força total em {year} (Log-Log)")
             plt.xlabel("Força (log)")
             plt.ylabel("Probabilidade acumulativa P(X ≥ x) (log)")
             plt.grid(True, which="both", linestyle='--')
-            plt.legend()
             plt.savefig(os.path.join(out_dir, f"total_{year}.png"))
             plt.close()
             
@@ -81,13 +45,11 @@ def plot_distribution(file_list, out_dir):
             inunique_strengths, incum_probs = calculate_cumulative_distribution(instrengths)
             
             plt.figure(figsize=(10, 6))
-            plt.loglog(inunique_strengths, incum_probs, 'go', markersize=5, label='In-strength Data')
-            add_power_law_fit(inunique_strengths, incum_probs, 'm', "Entrada")
+            plt.loglog(inunique_strengths, incum_probs, 'go', markersize=5)
             plt.title(f"Distribuição acumulativa de força de entrada em {year} (Log-Log)")
             plt.xlabel("Força entrada (log)")
             plt.ylabel("Probabilidade acumulativa P(X ≥ x) (log)")
             plt.grid(True, which="both", linestyle='--')
-            plt.legend()
             plt.savefig(os.path.join(out_dir, f"in_{year}.png"))
             plt.close()
             
@@ -96,13 +58,11 @@ def plot_distribution(file_list, out_dir):
             outunique_strengths, outcum_probs = calculate_cumulative_distribution(outstrengths)
             
             plt.figure(figsize=(10, 6))
-            plt.loglog(outunique_strengths, outcum_probs, 'ro', markersize=5, label='Out-strength Data')
-            add_power_law_fit(outunique_strengths, outcum_probs, 'c', "Saida ")
+            plt.loglog(outunique_strengths, outcum_probs, 'ro', markersize=5)
             plt.title(f"Distribuição acumulativa de força de saída em {year} (Log-Log)")
             plt.xlabel("Força saída (log)")
             plt.ylabel("Probabilidade acumulativa P(X ≥ x) (log)")
             plt.grid(True, which="both", linestyle='--')
-            plt.legend()
             plt.savefig(os.path.join(out_dir, f"out_{year}.png"))
             plt.close()
             
