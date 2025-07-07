@@ -3,7 +3,6 @@ import numpy as np
 import networkx as nx
 import sys, os, glob
 import matplotlib.pyplot as plt
-from scipy import optimize
 
 def power_law(x, a, b):
     return a * np.power(x, b)

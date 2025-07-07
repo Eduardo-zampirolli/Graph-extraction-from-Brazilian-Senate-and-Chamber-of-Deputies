@@ -1,84 +1,84 @@
-# NER para Textos Parlamentares
+# NER for Parliamentary Texts
 
-Este repositório contém scripts para reconhecimento de entidades nomeadas (NER) em textos parlamentares brasileiros, com foco na identificação de pessoas (PESSOA).
+This repository contains scripts for Named Entity Recognition (NER) in Brazilian parliamentary texts, focusing on the identification of persons (PESSOA).
 
-## Arquivos do Projeto
+## Project Files
 
-### Scripts Principais
+### Main Scripts
 
-- **ner.py**: Script principal que realiza o reconhecimento de entidades nomeadas em textos, utilizando um modelo pré-treinado. Gera arquivos `.grouped_entities.json` com as entidades agrupadas.
+- **ner.py**: Main script that performs Named Entity Recognition on texts using a pre-trained model. Generates `.grouped_entities.json` files with grouped entities.
 
-- **create_annotations.py**: Cria arquivos `.annotated.txt` a partir de textos originais e arquivos `.grouped_entities.json`, inserindo tags `<PESSOA:nome>` nas posições corretas.
+- **create_annotations.py**: Creates `.annotated.txt` files from original texts and `.grouped_entities.json` files, inserting `<PESSOA:name>` tags at correct positions.
 
-- **extract_annotation.py**: Extrai entidades manualmente anotadas de arquivos de gabarito, gerando arquivos JSON com as entidades extraídas.
+- **extract_annotation.py**: Extracts manually annotated entities from ground truth files, generating JSON files with extracted entities.
 
-- **create_manual.py**: Cria arquivos JSON agrupados a partir de anotações manuais extraídas.
+- **create_manual.py**: Creates grouped JSON files from extracted manual annotations.
 
-- **compare_outputs.py**: Compara os resultados do NER automático com anotações manuais (gabarito), gerando relatórios de métricas como precisão, recall e F1-score.
+- **compare_outputs.py**: Compares automatic NER results with manual annotations (ground truth), generating metric reports such as precision, recall, and F1-score.
 
-## Métodos Importantes
+## Important Methods
 
-### Mesclagem de Entidades
+### Entity Merging
 
-O processo de mesclagem (`_merge_adjacent_entities`) combina entidades adjacentes ou sobrepostas que provavelmente pertencem ao mesmo nome. Por exemplo:
+The merging process (`_merge_adjacent_entities`) combines adjacent or overlapping entities that likely belong to the same name. For example:
 
-- Entidades fragmentadas como "Senador" e "João Silva" são mescladas em "Senador João Silva"
-- Nomes separados por espaços ou conectores como "de", "da", "do" são unidos
-- Entidades sobrepostas são combinadas para formar uma única menção
+- Fragmented entities like "Senator" and "João Silva" are merged into "Senator João Silva"
+- Names separated by spaces or connectors like "de", "da", "do" are united
+- Overlapping entities are combined to form a single mention
 
-### Agrupamento de Entidades
+### Entity Grouping
 
-O agrupamento (`_group_similar_persons`) identifica diferentes variações do mesmo nome e as agrupa sob um nome canônico:
+The grouping process (`_group_similar_persons`) identifies different variations of the same name and groups them under a canonical name:
 
-- Usa similaridade de texto para identificar variações do mesmo nome (ex: "João Silva", "J. Silva", "Silva")
-- Prioriza nomes mais completos como representantes do grupo
-- Mantém todas as posições de ocorrência para cada entidade agrupada
-- Utiliza a biblioteca fuzzywuzzy para calcular similaridade entre strings
+- Uses text similarity to identify variations of the same name (e.g., "João Silva", "J. Silva", "Silva")
+- Prioritizes more complete names as group representatives
+- Maintains all occurrence positions for each grouped entity
+- Uses the fuzzywuzzy library to calculate similarity between strings
 
-### Método de Teste
+### Testing Method
 
-O processo de avaliação (`compare_outputs.py`) compara os resultados do NER com anotações manuais:
+The evaluation process (`compare_outputs.py`) compares NER results with manual annotations:
 
-- **True Positives (TP)**: Entidades corretamente identificadas e agrupadas
-- **Detected but Misgrouped (DM)**: Entidades detectadas mas agrupadas incorretamente
-- **False Negatives (FN)**: Entidades do gabarito não detectadas
-- **False Positives (FP)**: Entidades detectadas incorretamente
+- **True Positives (TP)**: Entities correctly identified and grouped
+- **Detected but Misgrouped (DM)**: Entities detected but incorrectly grouped
+- **False Negatives (FN)**: Ground truth entities not detected
+- **False Positives (FP)**: Incorrectly detected entities
 
-Calcula métricas de precisão, recall e F1-score em dois modos:
-- **Estrito**: Apenas TPs são considerados acertos
-- **Flexível**: TPs e DMs são considerados detecções corretas
+Calculates precision, recall, and F1-score metrics in two modes:
+- **Strict**: Only TPs are considered correct
+- **Flexible**: Both TPs and DMs are considered correct detections
 
-## Como Usar
+## How to Use
 
-### Processamento de Textos
+### Text Processing
 
-1. **Reconhecimento de Entidades**:
+1. **Entity Recognition**:
    ```
-   python ner.py <diretorio_entrada> <diretorio_saida>
+   python ner.py <input_directory> <output_directory>
    ```
-   Processa todos os arquivos `.txt` no diretório de entrada e gera arquivos `.grouped_entities.json` no diretório de saída.
+   Processes all `.txt` files in the input directory and generates `.grouped_entities.json` files in the output directory.
 
-2. **Criação de Arquivos Anotados**:
+2. **Creating Annotated Files**:
    ```
-   python create_annotations.py --original-dir <dir_textos> --json-dir <dir_json> --output-dir <dir_saida>
+   python create_annotations.py --original-dir <text_dir> --json-dir <json_dir> --output-dir <output_dir>
    ```
-   Cria arquivos `.annotated.txt` a partir dos textos originais e dos arquivos JSON gerados pelo NER.
+   Creates `.annotated.txt` files from original texts and JSON files generated by NER.
 
-3. **Extração de Anotações Manuais**:
+3. **Manual Annotation Extraction**:
    ```
-   python extract_annotation.py <arquivo_gabarito> <arquivo_json_saida> <arquivo_texto_reconstruido>
+   python extract_annotation.py <ground_truth_file> <json_output_file> <reconstructed_text_file>
    ```
-   Extrai entidades de um arquivo de gabarito manual.
+   Extracts entities from a manual ground truth file.
 
-4. **Comparação de Resultados**:
+4. **Results Comparison**:
    ```
-   python compare_outputs.py <diretorio> <arquivo_base>
+   python compare_outputs.py <directory> <base_filename>
    ```
-   Compara os resultados do NER com anotações manuais e gera um relatório de métricas.
+   Compares NER results with manual annotations and generates a metrics report.
 
-## Fluxo de Trabalho
+## Workflow
 
-1. Execute o `ner.py` para processar os textos e gerar os arquivos `.grouped_entities.json`
-2. Use o `create_annotations.py` para gerar os arquivos `.annotated.txt` com as tags
-3. Para avaliação, extraia anotações manuais com `extract_annotation.py`
-4. Compare os resultados usando `compare_outputs.py`
+1. Run `ner.py` to process texts and generate `.grouped_entities.json` files
+2. Use `create_annotations.py` to generate `.annotated.txt` files with tags
+3. For evaluation, extract manual annotations with `extract_annotation.py`
+4. Compare results using `compare_outputs.py`
