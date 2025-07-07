@@ -24,7 +24,7 @@ The project processes data from multiple sources:
 - **Entity Normalization**: Fuzzy matching and name standardization to handle variations in how names appear
 - **Graph Construction**: Creation of weighted directed graphs where nodes are parliamentarians and edges represent interaction patterns
 - **Statistical Analysis**: Comprehensive graph metrics including degree distribution, clustering coefficients, and network centrality measures
-- **Visualization**: Multiple visualization options including static plots and interactive network displays
+- **Visualization**: Multiple visualization options including static plots and network displays, using "Fruchterman Reingold" layout and detecting communities
 
 ## 📂 Project Structure
 

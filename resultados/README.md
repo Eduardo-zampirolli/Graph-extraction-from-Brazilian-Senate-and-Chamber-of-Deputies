@@ -75,8 +75,6 @@ The `resultados/` directory serves as the analytical hub of the project, contain
 - Normalization across different graph sizes
 - Statistical curve fitting
 
-### 🎨 Visualization Tools
-
 ### 📓 Interactive Notebooks
 
 #### `Plots.ipynb`
@@ -157,20 +155,21 @@ jupyter notebook graph_plot.ipynb
 ```
 
 ### Custom Graph Visualization
-```python
-from analise_grafos import plot_gexf_graph
+Graph visualization can be performed using the Jupyter notebooks or by using standard Python libraries:
 
-# Plot a graph with custom parameters
-plot_gexf_graph(
-    file_path="path/to/graph.gexf",
-    layout_algorithm="fr",
-    show_labels=False,
-    node_size=10,
-    edge_width=0.5,
-    figure_size=(20, 20),
-    output_filename="my_graph.png",
-    dpi=300
-)
+```python
+import igraph as ig
+import matplotlib.pyplot as plt
+import networkx as nx
+
+# Load and plot a graph
+file_path = "path/to/graph.gexf"
+nwx_graph = nx.read_gexf(file_path)
+ig_graph = ig.Graph.from_networkx(nwx_graph)
+
+# Create a simple plot
+layout = ig_graph.layout("fr")  # Fruchterman-Reingold layout
+ig.plot(ig_graph, layout=layout, bbox=(800, 600), margin=20)
 ```
 
 ## 📋 Output Structure
@@ -228,14 +227,6 @@ graphs/
 - **Visualization**: Large graphs may require layout optimization
 - **Storage**: High-resolution plots can be several MB each
 
-## 💡 Tips for Analysis
-
-1. **Start with smaller graphs** to test parameters before processing large datasets
-2. **Use appropriate layout algorithms**: 'fr' for small graphs, 'drl' for large ones
-3. **Disable labels** for graphs with >100 nodes to improve readability
-4. **Adjust node sizes** based on degree centrality for better visualization
-5. **Use high DPI** (300+) for publication-quality images
-6. **Monitor memory usage** when processing multiple large graphs
 
 ## 🔍 Troubleshooting
 
@@ -244,12 +235,6 @@ graphs/
 - **Slow processing**: Use faster layout algorithms or reduce visualization complexity
 - **Missing dependencies**: Ensure all required packages are installed
 - **File format errors**: Verify GEXF files are properly formatted
-
-### Performance Optimization
-- Use `layout_algorithm='drl'` for large graphs
-- Set `show_labels=False` for graphs with >100 nodes
-- Process graphs in batches to manage memory usage
-- Use lower DPI for draft visualizations
 
 ## 📚 Further Reading
 
